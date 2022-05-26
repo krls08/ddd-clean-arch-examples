@@ -1,0 +1,358 @@
+openapi: 3.0.3
+
+info:
+  title: Simple GoLang web server
+  description: It is a simple web server written in the Go programming language.
+    The project uses DDD and CQRS architecture.
+  contact:
+    name: Konstantin (Forzend)
+    url: https://t.me/F0rzend
+  license:
+    name: MIT
+    url: https://mit-license.org/
+  version: 0.1.0
+
+servers:
+  - url: 'http://localhost:8080'
+    description: Local debug server
+
+tags:
+  - name: Users
+    description: Users management
+
+  - name: Finances
+    description: Finances management
+
+paths:
+  /users:
+    post:
+      tags:
+        - Users
+      summary: User sign up
+      description: Create new user
+      operationId: createUser
+      requestBody:
+        description: User registration data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: F0rzend
+                username:
+                  type: string
+                  example: forzend
+                email:
+                  type: string
+                  format: email
+                  example: some@gmail.com
+        required: true
+
+      responses:
+        204:
+          description: Location of created user
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: /users/1
+        400:
+          description: Validation error
+        409:
+          description: User already exists
+        500:
+          description: Error on server side
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by id
+      description: Get registered user
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        200:
+          description: Current user object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          description: User not found
+        500:
+          description: Error on server side
+
+    put:
+      tags:
+        - Users
+      summary: Change the name or the email of a user
+      description: Change the name or the email of a user
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: F0rzend
+                email:
+                  type: string
+                  format: email
+                  example: some@gmail.com
+        required: true
+
+      responses:
+        204:
+          description: Location to get updated user in the response header
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: /users/1
+        400:
+          description: Validation error
+        404:
+          description: User to update not found
+
+  /users/{id}/usd:
+    post:
+      tags:
+        - Finances
+      summary: Deposit or withdraw US dollars
+      description: A user cannot withdraw more usd than in possession
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        description: User USD deposit
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - deposit
+                    - withdraw
+                  example: deposit
+                amount:
+                  type: number
+                  format: float64
+                  example: 40.05
+        required: true
+
+      responses:
+        204:
+          description: Location to get updated user
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: /users/1
+        400:
+          description: Validation error
+        404:
+          description: User not found
+
+  /users/{id}/bitcoin:
+    post:
+      tags:
+        - Finances
+      summary: Buy or sell Bitcoins
+      description: A user cannot withdraw bitcoins, only convert them to or from usd
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        description: Action and amount to buy or sell
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - buy
+                    - sell
+                  example: buy
+                amount:
+                  type: number
+                  format: float64
+                  example: 0.05
+        required: true
+
+      responses:
+        204:
+          description: Location to get updated user
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: /users/1
+
+        400:
+          description: Validation error
+
+        404:
+          description: User not found
+
+  /users/{id}/balance:
+    get:
+      tags:
+        - Finances
+      summary: Get user balance
+      description: user balance is amount in usd + amount of bitcoins converted to usd
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        200:
+          description: Total user's balance
+          content:
+            application/json:
+              schema:
+                type: number
+                format: float64
+                example: 120.05
+        404:
+          description: User not found
+        500:
+          description: Error on server side
+
+  /bitcoin:
+    get:
+      tags:
+        - Finances
+      summary: Get current bitcoin price
+      description: Get current bitcoin price in USD
+      responses:
+        200:
+          description: Current bitcoin price and last updating date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bitcoin'
+
+    put:
+      tags:
+        - Finances
+      summary: Change the bitcoin price
+      description: Set new bitcoin price in USD
+      requestBody:
+        description: New bitcoin price
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                price:
+                  type: number
+                  format: float64
+                  example: 100.00
+      responses:
+        204:
+          description: Location to get updated bitcoin price
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: /bitcoin
+        400:
+          description: Validation error
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint64
+          example: 1
+
+        name:
+          type: string
+          example: Forzend
+
+        username:
+          type: string
+          example: forzend
+
+        email:
+          type: string
+          format: email
+          example: some@gmail.com
+
+        bitcoin_amount:
+          type: number
+          example: 0.0
+
+        usd_balance:
+          type: number
+          example: 0.0
+
+        created_at:
+          type: string
+          format: date-time
+          example: 2020-01-01T00:00:00Z
+
+        updated_at:
+          type: string
+          format: date-time
+          example: 2020-01-01T00:00:00Z
+
+    Bitcoin:
+      type: object
+      properties:
+        price:
+          type: number
+          format: float
+          example: 100.00
+        updated_at:
+          type: string
+          format: date-time
+          example: 2020-01-01T00:00:00Z
+
+externalDocs:
+  description: Github repository of the project
+  url: https://github.com/F0rzend/SimpleGoWebserver
